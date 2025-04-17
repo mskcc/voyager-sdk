@@ -59,6 +59,13 @@ Options:
   --format [CWL|NF]               Pipeline script format (CWL or NF)<br/>
   --help                          Show this message and exit.
 
+#### Example:
+
+The Example of the Operator code: <br/>
+https://github.com/mskcc/argos-operator-v2/ <br/>
+This Operator is developed to run the CWL pipeline called Argos:<br/>
+https://github.com/mskcc/argos-cwl
+
 ### Operator Run
 
 Operator run command instantiate the Operator class and calls the get_jobs() function.
