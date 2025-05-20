@@ -4,3 +4,5 @@ class VoyagerAPI(object):
     REFRESH = "api-token-refresh/"
 
     FILES = "v0/fs/files/"
+    PIPELINES = "v0/run/pipelines/"
+    RUN = "v0/run/api/"
