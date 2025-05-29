@@ -47,6 +47,9 @@ class Config:
 
     def _dump_config(self):
         """Save the current configuration to the JSON file."""
+        config_dir_name = os.path.dirname(self._config_file)
+        if not os.path.exists(config_dir_name):
+            os.mkdir(config_dir_name)
         with open(self._config_file, "w") as file:
             json.dump(self._config, file, indent=4)
 
