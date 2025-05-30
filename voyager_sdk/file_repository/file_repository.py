@@ -54,9 +54,9 @@ class FileRepository(object):
         try:
             auth = Authenticator.get_auth()
         except JWTTokenExpiredException as e:
-            raise AuthenticationException(f"Failed to authenticate for {self.base_url}")
+            raise AuthenticationException(f"Failed to authenticate for {config.base_url}")
         except AuthenticationException as e:
-            raise AuthenticationException(f"Failed to authenticate for {self.base_url}")
+            raise AuthenticationException(f"Failed to authenticate for {config.base_url}")
         if auth["type"] == "JWT":
             authorization = {"Authorization": f"Bearer {self.config.auth_token}"}
         elif auth["type"] == "SERVICE":

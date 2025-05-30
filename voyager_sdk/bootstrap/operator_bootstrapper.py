@@ -68,7 +68,7 @@ CONFIG_TEMPLATE = {
 class OperatorBootstrapper(object):
 
     @staticmethod
-    def initialize(operator_name, base_dir, pipeline_link, pipeline_version, pipeline_endpoint, pipeline_format):
+    def initialize(operator_name, base_dir, pipeline_name, pipeline_link, pipeline_version, pipeline_endpoint, pipeline_format):
         operator_file_name = OperatorBootstrapper.camel_to_snake(operator_name)
         operator_directory = os.path.join(base_dir, operator_file_name)
         Path(operator_directory).mkdir(parents=True, exist_ok=True)
@@ -80,6 +80,7 @@ class OperatorBootstrapper(object):
         OperatorBootstrapper.initialize_config(config_path,
                                                operator_name,
                                                operator_file_name,
+                                               pipeline_name,
                                                pipeline_link,
                                                pipeline_version,
                                                pipeline_endpoint,
@@ -89,16 +90,19 @@ class OperatorBootstrapper(object):
         OperatorBootstrapper.initialize_input_schema(input_schema_path, pipeline_schema["inputs"])
 
     @staticmethod
-    def initialize_config(config_path, operator_name, operator_package, pipeline_link, pipeline_version, pipeline_entrypoint, pipeline_format):
+    def initialize_config(config_path, operator_name, operator_package, pipeline_name, pipeline_link, pipeline_version, pipeline_entrypoint, pipeline_format):
         Path(config_path).parent.mkdir(parents=True, exist_ok=True)
         config = {
             "pipeline": {
+                "pipeline_id": None,
+                "pipeline_name": pipeline_name,
                 "pipeline_link": pipeline_link,
                 "pipeline_version": pipeline_version,
                 "pipeline_entrypoint": pipeline_entrypoint,
                 "pipeline_format": pipeline_format
             },
             "operator": {
+                "operator_id": None,
                 "class_name": operator_name,
                 "package_name": operator_package
             }
@@ -110,6 +114,11 @@ class OperatorBootstrapper(object):
     def initialize_input_schema(input_schema_path, input_schema):
         with open(input_schema_path, "w") as f:
             json.dump(input_schema, f, indent=4)
+
+    @staticmethod
+    def cache_pipeline(pipeline_path, pipeline):
+        with open(pipeline_path, "w") as f:
+            json.dump(pipeline, f, indent=4)
 
     @staticmethod
     def camel_to_snake(name):

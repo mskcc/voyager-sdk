@@ -30,7 +30,7 @@ setup(
     install_requires=read_requirements(),  # Install dependencies from requirements.txt
     entry_points={
         "console_scripts": [
-            "voyager-sdk=main:main",  # Command-line executable
+            "voyager-sdk=cli.main:main",  # Command-line executable
         ],
     },
     classifiers=[

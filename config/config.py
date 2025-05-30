@@ -37,6 +37,8 @@ class Config:
                 "refresh_token": None,
                 "pipeline_cache": os.path.join(os.path.expanduser("~"), ".voyagersdk", "pipelines"),
                 "default_file_group": os.environ.get("VOYAGER_FILE_GROUP", "b54d035d-f63c-4ea8-86fb-9dbc976bb7fe"),
+                "output_file_group": os.environ.get("VOYAGER_OUTPUT_FILE_GROUP"),
+                "output_directory": os.environ.get("VOYAGER_OUTPUT_DIRECTORY"),
                 "base_url": os.environ.get("VOYAGER_URL", "http://voyager:5007")
             }
             self._dump_config()
@@ -45,6 +47,9 @@ class Config:
 
     def _dump_config(self):
         """Save the current configuration to the JSON file."""
+        config_dir_name = os.path.dirname(self._config_file)
+        if not os.path.exists(config_dir_name):
+            os.mkdir(config_dir_name)
         with open(self._config_file, "w") as file:
             json.dump(self._config, file, indent=4)
 

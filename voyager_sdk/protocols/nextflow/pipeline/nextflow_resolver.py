@@ -9,8 +9,7 @@ class NextflowResolver(PipelineResolver):
         super().__init__(github, entrypoint, version)
 
     def resolve(self):
-        dir = self._dir_name()
-        location = self._git_clone(dir)
+        location = self._git_clone()
         with open(os.path.join(location, "nextflow_schema.json"), "r") as f:
             nextflow_schema = json.load(f)
             inputs = self.schemas2template(nextflow_schema, location)
