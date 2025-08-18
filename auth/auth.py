@@ -19,6 +19,7 @@ class Authenticator(object):
             config.auth_token = response.json()["access"]
             config.refresh_token = response.json()["refresh"]
             config.email = response.json()["user"]["email"]
+            config.output_file_group = username
             return response.json()
         elif response.status_code == 401:
             raise InvalidCredentialsException(f"Invalid credentials for user {username}")

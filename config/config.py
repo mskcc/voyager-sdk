@@ -36,10 +36,10 @@ class Config:
                 "auth_token": None,
                 "refresh_token": None,
                 "pipeline_cache": os.path.join(os.path.expanduser("~"), ".voyagersdk", "pipelines"),
-                "default_file_group": os.environ.get("VOYAGER_FILE_GROUP", "b54d035d-f63c-4ea8-86fb-9dbc976bb7fe"),
+                "default_file_group": os.environ.get("VOYAGER_FILE_GROUP", "lims"),
                 "output_file_group": os.environ.get("VOYAGER_OUTPUT_FILE_GROUP"),
-                "output_directory": os.environ.get("VOYAGER_OUTPUT_DIRECTORY"),
-                "base_url": os.environ.get("VOYAGER_URL", "http://voyager:5007")
+                "output_directory": os.environ.get("VOYAGER_OUTPUT_DIRECTORY", "/juno/work/ci/staging_voyager/"),
+                "base_url": os.environ.get("VOYAGER_URL", "http://silo:4001")
             }
             self._dump_config()
             if not os.path.exists(self._config["pipeline_cache"]):
