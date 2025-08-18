@@ -1,12 +1,13 @@
 import json
 import os
 import click
+import pprint
 import getpass
 from config import Config
 from auth.auth import Authenticator
-from voyager_sdk.configuration import OperatorConfiguration
 from voyager_sdk.protocols import ProtocolType
 from voyager_sdk.bootstrap import OperatorBootstrapper
+from voyager_sdk.configuration import OperatorConfiguration
 from voyager_sdk.operator.operator_runner import OperatorRunner
 from voyager_sdk.operator.operator_factory import OperatorFactory
 from exceptions.auth_exceptions import InvalidCredentialsException, FailedToLoginException
@@ -104,12 +105,22 @@ def run_operator(request_id, pairs, dry_run):
             exit(1)
         operator_runner.submit_runs(jobs)
 
+@operator.command("run_production")
+@click.option("--operator-class", help="OperatorClass")
+@click.option("--request-id", help="Run Operator based on metadata key igoRequestId")
+@click.option("--pairs", help="Run Operator based on T/N Pairs (path to file)")
+def run_production(operator_class, request_id, pairs):
+    current_path = os.getcwd()
+    operator_configuration = OperatorConfiguration.load()
+    operator_runner = OperatorRunner(current_path)
+    jobs = operator_runner.run_production(operator_class, request_id, pairs)
+    print(json.dumps(jobs, indent=4))
 
 @operator.command("register")
 def register_operator():
     current_path = os.getcwd()
-    jobs = OperatorRunner(current_path).register()
-    print("Operator Register")
+    operator = OperatorRunner(current_path).register()
+    print(f"Operator successfully registered with id: {operator['operator_id']}")
 
 
 @click.group("pipeline")
@@ -118,9 +129,21 @@ def pipeline():
 
 
 @pipeline.command("register")
-def register_pipeline():
+@click.option("--output-file-group-slug", help="Output file-group slug. If not specified using default")
+@click.option("--output-directory", help="Output directory. If not specified using default")
+def register_pipeline(output_file_group_slug, output_directory):
     current_path = os.getcwd()
-    OperatorRunner(current_path).register_pipeline()
+    # TODO: Check is pipeline registered and if it is confirm user want to register it again
+    pipeline = OperatorRunner(current_path).register_pipeline(output_file_group=output_file_group_slug,
+                                                              output_directory=output_directory)
+    print(f"Pipeline successfully registered with id: {pipeline['pipeline_id']}")
+
+
+@pipeline.command("print-input-schema")
+def print_schema():
+    with open(os.path.join(".voyager", "inputs.json"), "r") as f:
+        inputs = json.load(f)
+        pprint.pprint(inputs)
 
 
 @click.group()

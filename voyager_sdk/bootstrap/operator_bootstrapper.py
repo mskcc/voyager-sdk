@@ -1,8 +1,10 @@
 import os
 import re
 import json
+import shutil
 from pathlib import Path
 from string import Template
+from importlib.resources import files, as_file
 from voyager_sdk.configuration import OperatorConfiguration
 from voyager_sdk.protocols.pipeline_cache import PipelineCache
 
@@ -70,12 +72,10 @@ class OperatorBootstrapper(object):
     @staticmethod
     def initialize(operator_name, base_dir, pipeline_name, pipeline_link, pipeline_version, pipeline_endpoint, pipeline_format):
         operator_file_name = OperatorBootstrapper.camel_to_snake(operator_name)
-        operator_directory = os.path.join(base_dir, operator_file_name)
+        main_directory = operator_file_name.replace("_", "-")
+        operator_package = operator_file_name
+        operator_directory = os.path.join(base_dir, main_directory)
         Path(operator_directory).mkdir(parents=True, exist_ok=True)
-        operator_file = os.path.join(operator_directory, f"{operator_file_name}.py")
-        with open(operator_file, 'w', encoding='utf-8') as f:
-            operator_content = OPERATOR_TEMPLATE.substitute(operator_name=operator_name)
-            f.write(operator_content)
         config_path = OperatorConfiguration.config_path(operator_directory)
         OperatorBootstrapper.initialize_config(config_path,
                                                operator_name,
@@ -85,9 +85,46 @@ class OperatorBootstrapper(object):
                                                pipeline_version,
                                                pipeline_endpoint,
                                                pipeline_format)
+        package_directory = os.path.join(operator_directory, operator_package)
+        Path(package_directory).mkdir(parents=True, exist_ok=True)
+        operator_file = os.path.join(package_directory, f"{operator_file_name}.py")
+        with open(operator_file, 'w', encoding='utf-8') as f:
+            operator_content = OPERATOR_TEMPLATE.substitute(operator_name=operator_name)
+            f.write(operator_content)
+        OperatorBootstrapper.copy_package_file("templates/README.md", os.path.join(operator_directory, "README.md"))
+        OperatorBootstrapper.copy_package_file("templates/requirements.txt", os.path.join(operator_directory, "requirements.txt"))
+        OperatorBootstrapper.copy_package_file("templates/setup.py.template",
+                                               os.path.join(operator_directory, "setup.py"))
+        OperatorBootstrapper.copy_package_file("templates/__init__.py.template",
+                                               os.path.join(package_directory, "__init__.py"))
+        OperatorBootstrapper.update_setup_py(operator_name, main_directory, operator_directory)
+
         pipeline_schema = PipelineCache.get_pipeline(pipeline_format, pipeline_link, pipeline_version, pipeline_endpoint)
         input_schema_path = OperatorConfiguration.input_schema_path(operator_directory)
         OperatorBootstrapper.initialize_input_schema(input_schema_path, pipeline_schema["inputs"])
+
+    @staticmethod
+    def copy_package_file(file_path, target_path):
+        """Copy a file from the package to a target location"""
+        source = files("voyager_sdk").joinpath(file_path)
+        with as_file(source) as src_file:
+            shutil.copy(src_file, target_path)
+
+    @staticmethod
+    def update_setup_py(operator_name, package_name, operator_directory):
+        path = Path(os.path.join(operator_directory, "setup.py"))
+
+        if not path.exists():
+            raise FileNotFoundError(f"setup.py not found at {path.absolute()}")
+
+        with open(path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        updated_content = content.replace("{OPERATOR_NAME}", operator_name)
+        updated_content = updated_content.replace("{PACKAGE_NAME}", package_name)
+
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(updated_content)
 
     @staticmethod
     def initialize_config(config_path, operator_name, operator_package, pipeline_name, pipeline_link, pipeline_version, pipeline_entrypoint, pipeline_format):
