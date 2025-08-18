@@ -39,7 +39,7 @@ class Config:
                 "default_file_group": os.environ.get("VOYAGER_FILE_GROUP", "lims"),
                 "output_file_group": os.environ.get("VOYAGER_OUTPUT_FILE_GROUP"),
                 "output_directory": os.environ.get("VOYAGER_OUTPUT_DIRECTORY", "/juno/work/ci/staging_voyager/"),
-                "base_url": os.environ.get("VOYAGER_URL", "http://voyager:5007")
+                "base_url": os.environ.get("VOYAGER_URL", "http://silo:4001")
             }
             self._dump_config()
             if not os.path.exists(self._config["pipeline_cache"]):
