@@ -38,7 +38,7 @@ class Config:
                 "pipeline_cache": os.path.join(os.path.expanduser("~"), ".voyagersdk", "pipelines"),
                 "default_file_group": os.environ.get("VOYAGER_FILE_GROUP", "lims"),
                 "output_file_group": os.environ.get("VOYAGER_OUTPUT_FILE_GROUP"),
-                "output_directory": os.environ.get("VOYAGER_OUTPUT_DIRECTORY"),
+                "output_directory": os.environ.get("VOYAGER_OUTPUT_DIRECTORY", "/juno/work/ci/staging_voyager/"),
                 "base_url": os.environ.get("VOYAGER_URL", "http://voyager:5007")
             }
             self._dump_config()

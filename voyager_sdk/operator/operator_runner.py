@@ -1,7 +1,8 @@
+import os
 import json
 import uuid
-from config import Config
 from git import Repo
+from config import Config
 from voyager_sdk.configuration import OperatorConfiguration
 from voyager_sdk.client.voyager_client import VoyagerClient
 from voyager_sdk.operator.operator_factory import OperatorFactory
@@ -93,7 +94,7 @@ class OperatorRunner(object):
 
     def submit_runs(self, inputs):
         pipeline = self.operator_config.pipeline["pipeline_id"]
-        output_directory = config.output_directory + f"/{str(uuid.uuid4())}"
+        output_directory = os.path.join(config.output_directory, config.email.split("@")[0], f"{str(uuid.uuid4())}")
         for input_json in inputs:
             response = VoyagerClient.run_pipeline(input_json["name"], pipeline, input_json["inputs"], input_json.get("tags", {}), output_directory)
             print(response)
