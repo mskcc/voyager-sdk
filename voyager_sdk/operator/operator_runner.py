@@ -96,5 +96,5 @@ class OperatorRunner(object):
         output_directory = config.output_directory + f"/{str(uuid.uuid4())}"
         for input_json in inputs:
             response = VoyagerClient.run_pipeline(input_json["name"], pipeline, input_json["inputs"], input_json.get("tags", {}), output_directory)
-            print(response.json())
+            print(response)
 
