@@ -5,12 +5,11 @@ import importlib.util
 class OperatorFactory(object):
 
     @staticmethod
-    def get_by_model(class_name, **kwargs):
-        # TODO: Deprecated
+    def import_installed_operator(class_name):
         mod_name, func_name = class_name.rsplit(".", 1)
         mod = importlib.import_module(mod_name)
         operator_class = getattr(mod, func_name)
-        return operator_class(**kwargs)
+        return operator_class
 
     @staticmethod
     def import_operator(class_name, full_path):
