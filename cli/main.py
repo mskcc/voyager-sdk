@@ -1,5 +1,6 @@
 import json
 import os
+import functools
 import click
 import pprint
 import getpass
@@ -7,15 +8,28 @@ from config import Config
 from auth.auth import Authenticator
 from voyager_sdk.protocols import ProtocolType
 from voyager_sdk.bootstrap import OperatorBootstrapper
+from voyager_sdk.logging_config import setup_logging
 from voyager_sdk.configuration import OperatorConfiguration
 from voyager_sdk.operator.operator_runner import OperatorRunner
-from voyager_sdk.operator.operator_factory import OperatorFactory
 from exceptions.auth_exceptions import InvalidCredentialsException, FailedToLoginException
 
 config = Config()
 
 
+def local_only(f):
+    """Disallow this command when config.mode is SERVICE."""
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        print(config.mode)
+        if config.mode == "SERVICE":
+            print(config.mode)
+            raise click.UsageError(f"'{click.get_current_context().command_path}' is not available in SERVICE mode")
+        return f(*args, **kwargs)
+    return wrapper
+
+
 @click.command("login")
+@local_only
 def login():
     """
 
@@ -45,6 +59,7 @@ def login():
 
 
 @click.command("logout")
+@local_only
 def logout():
     email = config.email
     config.auth_token = ""
@@ -59,6 +74,7 @@ def operator():
 
 
 @operator.command("create")
+@local_only
 @click.option("--name", help="Operator class name (example: PipelineXOperator)")
 @click.option("--pipeline_name", help="Pipeline name (example: Pipeline 1.0.0)")
 @click.option("--pipeline_github", help="Pipeline github repository")
@@ -66,7 +82,7 @@ def operator():
 @click.option("--pipeline_entrypoint", help="Pipeline script (cwl or nf)")
 @click.option('--format',
               type=click.Choice(['CWL', 'NF'], case_sensitive=False), help="Pipeline script format (CWL or NF)")
-def create_operator(name, pipeline_name, pipeline_github, pipeline_github_version, pipeline_entrypoint, format):
+def initialize_operator(name, pipeline_name, pipeline_github, pipeline_github_version, pipeline_entrypoint, format):
     print(f"Bootstrapping Operator {name} for Pipeline")
     current_dir = os.getcwd()
     if format == "CWL":
@@ -88,6 +104,7 @@ def create_operator(name, pipeline_name, pipeline_github, pipeline_github_versio
 
 
 @operator.command("run")
+@local_only
 @click.option("--request-id", help="Run Operator based on metadata key igoRequestId")
 @click.option("--pairs", help="Run Operator based on T/N Pairs (path to file)")
 @click.option("--dry-run",  is_flag=True)
@@ -100,7 +117,7 @@ def run_operator(request_id, pairs, dry_run):
         exit(0)
     else:
         operator_configuration = OperatorConfiguration.load()
-        if not operator_configuration.pipeline["pipeline_id"]:
+        if not operator_configuration.pipeline.pipeline_id:
             print("Need to run voyager-sdk pipeline register before submitting runs to voyager")
             exit(1)
         operator_runner.submit_runs(jobs)
@@ -109,19 +126,30 @@ def run_operator(request_id, pairs, dry_run):
 @click.option("--operator-class", help="OperatorClass")
 @click.option("--request-id", help="Run Operator based on metadata key igoRequestId")
 @click.option("--pairs", help="Run Operator based on T/N Pairs (path to file)")
+@click.option("--job-group", help="Job Group Id")
+@click.option("--job-group-notifier", help="Job Group Notifier Id")
 def run_production(operator_class, request_id, pairs):
+    # TODO: Implement how are we running it in production
     current_path = os.getcwd()
     operator_configuration = OperatorConfiguration.load()
     operator_runner = OperatorRunner(current_path)
-    jobs = operator_runner.run_production(operator_class, request_id, pairs)
-    print(json.dumps(jobs, indent=4))
+    # jobs = operator_runner.run_production(operator_class, request_id, pairs)
+    # print(json.dumps(jobs, indent=4))
+
 
 @operator.command("register")
+@local_only
 def register_operator():
     current_path = os.getcwd()
     operator = OperatorRunner(current_path).register()
-    print(f"Operator successfully registered with id: {operator['operator_id']}")
+    print(f"Operator successfully registered with id: {operator.operator_id}")
 
+
+@operator.command("package")
+def package_operator():
+    current_path = os.getcwd()
+    operator = OperatorRunner(current_path).build()
+    print(operator)
 
 @click.group("pipeline")
 def pipeline():
@@ -129,6 +157,7 @@ def pipeline():
 
 
 @pipeline.command("register")
+@local_only
 @click.option("--output-file-group-slug", help="Output file-group slug. If not specified using default")
 @click.option("--output-directory", help="Output directory. If not specified using default")
 def register_pipeline(output_file_group_slug, output_directory):
@@ -136,7 +165,7 @@ def register_pipeline(output_file_group_slug, output_directory):
     # TODO: Check is pipeline registered and if it is confirm user want to register it again
     pipeline = OperatorRunner(current_path).register_pipeline(output_file_group=output_file_group_slug,
                                                               output_directory=output_directory)
-    print(f"Pipeline successfully registered with id: {pipeline['pipeline_id']}")
+    print(f"Pipeline successfully registered with id: {pipeline.pipeline_id}")
 
 
 @pipeline.command("print-input-schema")
@@ -147,9 +176,17 @@ def print_schema():
 
 
 @click.group()
-def main():
-    pass
+@click.option("-v", "--verbose", count=True, help="Increase log verbosity (-v INFO, -vv DEBUG)")
+def main(verbose):
+    setup_logging(verbose)
 
+
+if config.mode == "SERVICE":
+    ## TODO: Add commands for SERVICE mode
+    pass
+elif config.mode == "LOCAL":
+    ## TODO: Add commands for LOCAL mode
+    pass
 
 main.add_command(login)
 main.add_command(logout)

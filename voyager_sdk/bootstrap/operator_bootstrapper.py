@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 from string import Template
 from importlib.resources import files, as_file
-from voyager_sdk.configuration import OperatorConfiguration
+from voyager_sdk.configuration import OperatorConfiguration, PipelineConfig, OperatorConfig
 from voyager_sdk.protocols.pipeline_cache import PipelineCache
 
 
@@ -92,11 +92,12 @@ class OperatorBootstrapper(object):
             operator_content = OPERATOR_TEMPLATE.substitute(operator_name=operator_name)
             f.write(operator_content)
         OperatorBootstrapper.copy_package_file("templates/README.md", os.path.join(operator_directory, "README.md"))
-        OperatorBootstrapper.copy_package_file("templates/requirements.txt", os.path.join(operator_directory, "requirements.txt"))
+        OperatorBootstrapper.copy_package_file("templates/requirements.txt.template", os.path.join(operator_directory, "requirements.txt"))
         OperatorBootstrapper.copy_package_file("templates/setup.py.template",
                                                os.path.join(operator_directory, "setup.py"))
         OperatorBootstrapper.copy_package_file("templates/__init__.py.template",
                                                os.path.join(package_directory, "__init__.py"))
+        OperatorBootstrapper.copy_package_file("templates/Dockerfile.template", os.path.join(package_directory, "Dockerfile"))
         OperatorBootstrapper.update_setup_py(operator_name, main_directory, operator_directory)
 
         pipeline_schema = PipelineCache.get_pipeline(pipeline_format, pipeline_link, pipeline_version, pipeline_endpoint)
@@ -129,23 +130,16 @@ class OperatorBootstrapper(object):
     @staticmethod
     def initialize_config(config_path, operator_name, operator_package, pipeline_name, pipeline_link, pipeline_version, pipeline_entrypoint, pipeline_format):
         Path(config_path).parent.mkdir(parents=True, exist_ok=True)
-        config = {
-            "pipeline": {
-                "pipeline_id": None,
-                "pipeline_name": pipeline_name,
-                "pipeline_link": pipeline_link,
-                "pipeline_version": pipeline_version,
-                "pipeline_entrypoint": pipeline_entrypoint,
-                "pipeline_format": pipeline_format
-            },
-            "operator": {
-                "operator_id": None,
-                "class_name": operator_name,
-                "package_name": operator_package
-            }
-        }
-        with open(config_path, "w") as f:
-            json.dump(config, f, indent=4)
+        operator_configuration = OperatorConfiguration({}, None)
+        operator_configuration.pipeline = PipelineConfig(pipeline_name=pipeline_name,
+                                                         pipeline_link=pipeline_link,
+                                                         pipeline_version=pipeline_version,
+                                                         pipeline_entrypoint=pipeline_entrypoint,
+                                                         pipeline_format=pipeline_format)
+        operator_configuration.operator = OperatorConfig(class_name=operator_name,
+                                                         package_name=operator_package,
+                                                         args=["igoRequestId"])
+        operator_configuration.dump(config_path)
 
     @staticmethod
     def initialize_input_schema(input_schema_path, input_schema):

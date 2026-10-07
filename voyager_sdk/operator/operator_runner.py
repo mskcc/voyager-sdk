@@ -1,6 +1,8 @@
 import os
 import json
 import uuid
+import docker
+import logging
 from git import Repo
 from config import Config
 from voyager_sdk.configuration import OperatorConfiguration
@@ -12,36 +14,38 @@ config = Config()
 
 
 class OperatorRunner(object):
+    logger = logging.getLogger(__name__)
 
     def __init__(self, path):
         self.path = path
         self.operator_config = OperatorConfiguration.load()
 
     def run(self, request_id=None, pairs=None):
-        operator_path = f"{self.operator_config.operator['package_name']}.{self.operator_config.operator['class_name']}"
-        file_path = self.path + "/" + self.operator_config.operator['package_name'] + "/" + f"{self.operator_config.operator['package_name']}.py"
+        operator = self.operator_config.operator
+        operator_path = f"{operator.package_name}.{operator.class_name}"
+        file_path = self.path + "/" + operator.package_name + "/" + f"{operator.package_name}.py"
         OperatorClass = OperatorFactory.import_operator(operator_path, file_path)
         if request_id:
-            operator_instance = OperatorClass(request_id=request_id, pipeline=self.operator_config.pipeline)
+            operator_instance = OperatorClass(request_id=request_id, pipeline=self.operator_config.pipeline.to_dict())
         elif pairs:
             with open(pairs, "r") as f:
                 pairs_dict = json.load(f)
-            operator_instance = OperatorClass(pairs=pairs_dict, pipeline=self.operator_config.pipeline)
+            operator_instance = OperatorClass(pairs=pairs_dict, pipeline=self.operator_config.pipeline.to_dict())
         else:
             raise MissingArgumentsException("--request-id or --pairs needs to be defined")
         jobs = operator_instance.get_jobs()
         return jobs
 
-    def run_production(self, operator_class, request_id=None, pairs=None):
-        OperatorClass = OperatorFactory.import_installed_operator(operator_class)
-        if request_id:
-            operator_instance = OperatorClass(request_id=request_id, pipeline=self.operator_config.pipeline)
-        elif pairs:
-            with open(pairs, "r") as f:
-                pairs_dict = json.load(f)
-            operator_instance = OperatorClass(pairs=pairs_dict, pipeline=self.operator_config.pipeline)
-        jobs = operator_instance.get_jobs()
-        return jobs
+    # def run_production(self, operator_class, request_id=None, pairs=None):
+    #     OperatorClass = OperatorFactory.import_installed_operator(operator_class)
+    #     if request_id:
+    #         operator_instance = OperatorClass(request_id=request_id, pipeline=self.operator_config.pipeline)
+    #     elif pairs:
+    #         with open(pairs, "r") as f:
+    #             pairs_dict = json.load(f)
+    #         operator_instance = OperatorClass(pairs=pairs_dict, pipeline=self.operator_config.pipeline)
+    #     jobs = operator_instance.get_jobs()
+    #     return jobs
 
     def register(self):
         repo = Repo(self.path)
@@ -57,16 +61,16 @@ class OperatorRunner(object):
         if not repo_tag:
             # Can't register operator without github tag
             raise
-        class_name = self.operator_config.operator["class_name"]
-        package_name = self.operator_config.operator["package_name"]
+        class_name = self.operator_config.operator.class_name
+        package_name = self.operator_config.operator.package_name
         github_link = origin
         version = repo_tag
-        pipeline_id = self.operator_config.pipeline["pipeline_id"]
+        pipeline_id = self.operator_config.pipeline.pipeline_id
         try:
             response = VoyagerClient.register_operator(class_name, version, class_name, package_name, github_link, pipeline_id)
         except Exception as e:
             raise
-        self.operator_config.pipeline["operator_id"] = response["id"]
+        self.operator_config.operator.operator_id = response["id"]
         self.operator_config.dump()
         return self.operator_config.operator
 
@@ -78,24 +82,44 @@ class OperatorRunner(object):
         if not output_directory:
             output_directory = config.output_directory
         try:
-            response = VoyagerClient.register_pipeline(pipeline["pipeline_format"],
-                                                       pipeline["pipeline_name"],
-                                                       pipeline["pipeline_link"],
-                                                       pipeline["pipeline_version"],
-                                                       pipeline["pipeline_entrypoint"],
+            response = VoyagerClient.register_pipeline(pipeline.pipeline_format,
+                                                       pipeline.pipeline_name,
+                                                       pipeline.pipeline_link,
+                                                       pipeline.pipeline_version,
+                                                       pipeline.pipeline_entrypoint,
                                                        output_directory,
                                                        output_file_group
                                                        )
         except Exception as e:
             raise
-        self.operator_config.pipeline["pipeline_id"] = response["id"]
+        self.operator_config.pipeline.pipeline_id = response["id"]
         self.operator_config.dump()
         return self.operator_config.pipeline
 
     def submit_runs(self, inputs):
-        pipeline = self.operator_config.pipeline["pipeline_id"]
+        pipeline = self.operator_config.pipeline.pipeline_id
         output_directory = os.path.join(config.output_directory, config.email.split("@")[0], f"{str(uuid.uuid4())}")
         for input_json in inputs:
             response = VoyagerClient.run_pipeline(input_json["name"], pipeline, input_json["inputs"], input_json.get("tags", {}), output_directory)
             print(response)
+
+    def build(self, tag=None):
+        if not tag:
+            tag = f"{self.operator_config.operator.package_name.lower()}:latest"
+        client = docker.from_env()
+        try:
+            image, logs = client.images.build(path=self.path, tag=tag, rm=True)
+        except docker.errors.BuildError as e:
+            self._log_build_output(e.build_log)
+            raise
+        self._log_build_output(logs)
+        return image
+
+    def _log_build_output(self, logs):
+        for line in logs:
+            if "stream" in line and line["stream"].strip():
+                self.logger.debug(line["stream"].rstrip())
+
+
+
 

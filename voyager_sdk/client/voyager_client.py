@@ -110,6 +110,5 @@ class VoyagerClient(object):
         else:
             raise AuthenticationException(f"Need to login to run command")
         response = requests.get(endpoint, headers=authorization)
-        print(response.json())
         response.raise_for_status()
         return response.json()

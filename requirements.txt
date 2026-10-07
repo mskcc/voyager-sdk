@@ -2,3 +2,4 @@ click==8.1.8
 GitPython==3.1.37
 requests
 sbpack==2024.12.17
+docker==7.2.0
