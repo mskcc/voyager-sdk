@@ -36,7 +36,8 @@ class Operator(object):
         self._pipeline = PipelineCache.get_pipeline(pipeline['pipeline_format'],
                                                     pipeline['pipeline_link'],
                                                     pipeline['pipeline_version'],
-                                                    pipeline['pipeline_entrypoint'])
+                                                    pipeline['pipeline_entrypoint'],
+                                                    pipeline.get('nfcore_template', False))
         self._pipeline = pipeline
         self._job_group_id = job_group_id
         self._job_group_notifier_id = job_group_notifier_id

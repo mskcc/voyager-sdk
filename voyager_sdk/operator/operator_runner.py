@@ -84,7 +84,8 @@ class OperatorRunner(object):
                                                        pipeline["pipeline_version"],
                                                        pipeline["pipeline_entrypoint"],
                                                        output_directory,
-                                                       output_file_group
+                                                       output_file_group,
+                                                       pipeline.get("nfcore_template", False)
                                                        )
         except Exception as e:
             raise

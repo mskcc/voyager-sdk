@@ -57,7 +57,28 @@ Options:
   --pipeline_github_version TEXT  Pipeline github version (tag or branch)<br/>
   --pipeline_entrypoint TEXT      Pipeline script (cwl or nf)<br/>
   --format [CWL|NF]               Pipeline script format (CWL or NF)<br/>
+  --nfcore-template               Pipeline follows the nf-core template (NF only)<br/>
   --help                          Show this message and exit.
+
+#### nf-core pipelines
+
+With `--nfcore-template`, inputs are parsed from the pipeline's `nextflow_schema.json`:
+- Each schema param becomes an input (`{"id": <param>, "schema": {"type": <format>}}`).
+- Params with a `schema` and `mimetype` (e.g. `--input`) become samplesheet inputs. nf-core templates don't add `mimetype` by default, so add it manually (`"mimetype": "text/csv"` or `"text/tsv"`) to every samplesheet param. Without it, the param is treated as a plain file path. Their fields come from the referenced samplesheet schema (e.g. `assets/schema_input.json`) and include a mustache `template` and `extension` (`.csv`/`.tsv`).
+- A single `outputs` port (File[]) is registered. At runtime it's populated from the pipeline's `manifest.json`.
+
+Without the flag, NF pipelines are expected to provide `inputs.template.json` at the repo root.
+
+The resolved schemas are written to `.voyager/inputs.json` and `.voyager/outputs.json`.
+
+```
+voyager-sdk operator create --name DemoOperator \
+  --pipeline_name "nf-core demo 1.0.2" \
+  --pipeline_github https://github.com/nf-core/demo \
+  --pipeline_github_version 1.0.2 \
+  --pipeline_entrypoint main.nf \
+  --format NF --nfcore-template
+```
 
 #### Example:
 
