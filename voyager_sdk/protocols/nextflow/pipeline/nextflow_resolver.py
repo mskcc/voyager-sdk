@@ -1,53 +1,63 @@
 import os
 import json
-from pathlib import Path
 from voyager_sdk.protocols.pipeline_resolver import PipelineResolver
+
+NFCORE_OUTPUTS = [{"id": "outputs", "schema": {"type": {"items": "File", "type": "array"}}}]
 
 
 class NextflowResolver(PipelineResolver):
-    def __init__(self, github, entrypoint, version=None):
+    def __init__(self, github, entrypoint, version=None, nfcore_template=False):
         super().__init__(github, entrypoint, version)
+        self.nfcore_template = nfcore_template
 
     def resolve(self):
         location = self._git_clone()
-        with open(os.path.join(location, "nextflow_schema.json"), "r") as f:
-            nextflow_schema = json.load(f)
+        if self.nfcore_template:
+            with open(os.path.join(location, "nextflow_schema.json"), "r") as f:
+                nextflow_schema = json.load(f)
             inputs = self.schemas2template(nextflow_schema, location)
-            pipeline = {"inputs": inputs}
-        return pipeline
+            return {"inputs": inputs, "outputs": NFCORE_OUTPUTS}
+        with open(os.path.join(location, "inputs.template.json"), "r") as f:
+            return json.load(f)
 
     def schemas2template(self, nextflow_schema, location):
-        # TODO Not sure if this is an exhaustive search of possible definitions
-        # TODO parse everything in definitions
-        reference = nextflow_schema["definitions"]["reference_genome_options"]["properties"]
-        input = nextflow_schema["definitions"]["input_output_options"]["properties"]
-        properties = {**reference, **input}
-        # Check for sample-sheet CLI inputs
-        samplesheets = [key for key, val in properties.items() if val.get("format") == "sample-sheet"]
-        inputs = [
-            {"id": key, "schema": {"type": val.get("format")}}
-            for key, val in properties.items()
-            if val.get("format") != "sample-sheet"
-        ]
-        # Check Assets for sample sheet schemas
-        for schema in samplesheets:
-            with open(os.path.join(location, f"assets/schema_{schema}.json"), "r") as f:
-                nextflow_schema = json.load(f)
-                samplesheet_props = nextflow_schema["items"]["properties"]
-                fields = [{"id": key, "type": val.get("format")} for key, val in samplesheet_props.items()]
-                header = "\t".join([f["id"] for f in fields]) + "\n"
-                body_start = f"{{{{#{schema}}}}}\n"
-                body_end = f"\n{{{{/{schema}}}}}"
-                body = "\t".join([f'{{{{{f["id"]}}}}}' for f in fields])
-                template = header + body_start + body + body_end
-                samplesheet_input = {"id": schema, "schema": {"items": {"fields": fields}}, "template": template}
-                inputs.append(samplesheet_input)
+        inputs = []
+        defs = nextflow_schema.get("$defs") or nextflow_schema.get("definitions") or {}
+        for definition in defs.values():
+            for key, prop in definition.get("properties", {}).items():
+                schema = prop.get("schema")
+                mimetype = prop.get("mimetype")
+                if schema and mimetype:
+                    samplesheet_input = self._samplesheet_input(key, schema, mimetype, location)
+                    if samplesheet_input:
+                        inputs.append(samplesheet_input)
+                else:
+                    inputs.append({"id": key, "schema": {"type": prop.get("format")}})
         return inputs
 
-    def load(self):
-        location = self._git_clone()
-        output_name = os.path.join(location, self._file_name())
-        if Path(output_name).exists():
-            with open(os.path.join(location, self.entrypoint), "r") as f:
-                ret = json.load(f)
-            return ret
+    def _samplesheet_input(self, key, schema, mimetype, location):
+        schema_path = os.path.join(location, schema)
+        if not os.path.exists(schema_path):
+            self.logger.warning(f"Samplesheet schema '{schema_path}' not found, skipping input '{key}'.")
+            return None
+        delimiter, extension = self._delimiter_for_mimetype(mimetype)
+        with open(schema_path, "r") as f:
+            samplesheet_props = json.load(f)["items"]["properties"]
+        fields = [{"id": k, "type": v.get("format")} for k, v in samplesheet_props.items()]
+        header = delimiter.join([f["id"] for f in fields]) + "\n"
+        body_start = f"{{{{#{key}}}}}\n"
+        body_end = f"\n{{{{/{key}}}}}"
+        body = delimiter.join([f'{{{{{f["id"]}}}}}' for f in fields])
+        return {
+            "id": key,
+            "schema": {"items": {"fields": fields}},
+            "template": header + body_start + body + body_end,
+            "extension": extension,
+        }
+
+    def _delimiter_for_mimetype(self, mimetype):
+        if mimetype == "text/csv":
+            return ",", ".csv"
+        if mimetype != "text/tsv":
+            self.logger.warning(f"Unsupported mimetype '{mimetype}', defaulting to tab delimiter.")
+        return "\t", ".tsv"

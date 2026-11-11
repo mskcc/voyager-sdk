@@ -58,7 +58,8 @@ CONFIG_TEMPLATE = {
         "pipeline_id": "",
         "pipeline_github_link": "",
         "pipeline_github_version": "",
-        "pipeline_entrypoint": ""
+        "pipeline_entrypoint": "",
+        "nfcore_template": False
     },
     "operator": {
         "class_name": "",
@@ -70,7 +71,8 @@ CONFIG_TEMPLATE = {
 class OperatorBootstrapper(object):
 
     @staticmethod
-    def initialize(operator_name, base_dir, pipeline_name, pipeline_link, pipeline_version, pipeline_endpoint, pipeline_format):
+    def initialize(operator_name, base_dir, pipeline_name, pipeline_link, pipeline_version, pipeline_endpoint, pipeline_format,
+                   nfcore_template=False):
         operator_file_name = OperatorBootstrapper.camel_to_snake(operator_name)
         main_directory = operator_file_name.replace("_", "-")
         operator_package = operator_file_name
@@ -84,7 +86,8 @@ class OperatorBootstrapper(object):
                                                pipeline_link,
                                                pipeline_version,
                                                pipeline_endpoint,
-                                               pipeline_format)
+                                               pipeline_format,
+                                               nfcore_template)
         package_directory = os.path.join(operator_directory, operator_package)
         Path(package_directory).mkdir(parents=True, exist_ok=True)
         operator_file = os.path.join(package_directory, f"{operator_file_name}.py")
@@ -99,9 +102,12 @@ class OperatorBootstrapper(object):
                                                os.path.join(package_directory, "__init__.py"))
         OperatorBootstrapper.update_setup_py(operator_name, main_directory, operator_directory)
 
-        pipeline_schema = PipelineCache.get_pipeline(pipeline_format, pipeline_link, pipeline_version, pipeline_endpoint)
+        pipeline_schema = PipelineCache.get_pipeline(pipeline_format, pipeline_link, pipeline_version, pipeline_endpoint,
+                                                     nfcore_template)
         input_schema_path = OperatorConfiguration.input_schema_path(operator_directory)
         OperatorBootstrapper.initialize_input_schema(input_schema_path, pipeline_schema["inputs"])
+        output_schema_path = OperatorConfiguration.output_schema_path(operator_directory)
+        OperatorBootstrapper.initialize_output_schema(output_schema_path, pipeline_schema.get("outputs", []))
 
     @staticmethod
     def copy_package_file(file_path, target_path):
@@ -127,7 +133,8 @@ class OperatorBootstrapper(object):
             f.write(updated_content)
 
     @staticmethod
-    def initialize_config(config_path, operator_name, operator_package, pipeline_name, pipeline_link, pipeline_version, pipeline_entrypoint, pipeline_format):
+    def initialize_config(config_path, operator_name, operator_package, pipeline_name, pipeline_link, pipeline_version, pipeline_entrypoint, pipeline_format,
+                          nfcore_template=False):
         Path(config_path).parent.mkdir(parents=True, exist_ok=True)
         config = {
             "pipeline": {
@@ -136,7 +143,8 @@ class OperatorBootstrapper(object):
                 "pipeline_link": pipeline_link,
                 "pipeline_version": pipeline_version,
                 "pipeline_entrypoint": pipeline_entrypoint,
-                "pipeline_format": pipeline_format
+                "pipeline_format": pipeline_format,
+                "nfcore_template": nfcore_template
             },
             "operator": {
                 "operator_id": None,
@@ -156,6 +164,11 @@ class OperatorBootstrapper(object):
     def cache_pipeline(pipeline_path, pipeline):
         with open(pipeline_path, "w") as f:
             json.dump(pipeline, f, indent=4)
+
+    @staticmethod
+    def initialize_output_schema(output_schema_path, output_schema):
+        with open(output_schema_path, "w") as f:
+            json.dump(output_schema, f, indent=4)
 
     @staticmethod
     def camel_to_snake(name):

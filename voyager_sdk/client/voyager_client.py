@@ -13,7 +13,8 @@ config = Config()
 class VoyagerClient(object):
 
     @staticmethod
-    def register_pipeline(pipeline_type, name, github, version, entrypoint, output_directory, output_file_group):
+    def register_pipeline(pipeline_type, name, github, version, entrypoint, output_directory, output_file_group,
+                          nfcore_template=False):
         endpoint = urljoin(config.base_url, f"{VoyagerAPI.PIPELINES}/")
         try:
             auth = Authenticator.get_auth()
@@ -32,7 +33,8 @@ class VoyagerClient(object):
             "version": version,
             "entrypoint": entrypoint,
             "output_directory": output_directory,
-            "output_file_group": output_file_group
+            "output_file_group": output_file_group,
+            "nfcore_template": nfcore_template
         }
         response = requests.post(endpoint, data=body, headers=authorization)
         response.raise_for_status()

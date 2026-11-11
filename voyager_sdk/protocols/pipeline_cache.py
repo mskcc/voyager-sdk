@@ -5,9 +5,9 @@ from voyager_sdk.protocols.nextflow.pipeline import NextflowResolver
 
 class PipelineCache(object):
     @staticmethod
-    def get_pipeline(protocol_type, github_link, github_version, pipeline_entrypoint):
+    def get_pipeline(protocol_type, github_link, github_version, pipeline_entrypoint, nfcore_template=False):
         resolver_class = PipelineCache._get_pipeline_resolver(protocol_type)
-        resolver = resolver_class(github_link, pipeline_entrypoint, github_version)
+        resolver = resolver_class(github_link, pipeline_entrypoint, github_version, nfcore_template)
         resolved_dict = resolver.resolve()
         return resolved_dict
 

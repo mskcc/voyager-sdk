@@ -66,10 +66,17 @@ def operator():
 @click.option("--pipeline_entrypoint", help="Pipeline script (cwl or nf)")
 @click.option('--format',
               type=click.Choice(['CWL', 'NF'], case_sensitive=False), help="Pipeline script format (CWL or NF)")
-def create_operator(name, pipeline_name, pipeline_github, pipeline_github_version, pipeline_entrypoint, format):
+@click.option("--nfcore-template", "nfcore_template", is_flag=True, default=False,
+              help="Pipeline follows the nf-core template (inputs parsed from nextflow_schema.json)")
+def create_operator(name, pipeline_name, pipeline_github, pipeline_github_version, pipeline_entrypoint, format,
+                    nfcore_template):
     print(f"Bootstrapping Operator {name} for Pipeline")
     current_dir = os.getcwd()
+    format = format.upper() if format else format
     if format == "CWL":
+        if nfcore_template:
+            print("--nfcore-template is only supported with --format NF")
+            return
         pipeline_format = ProtocolType.CWL
     elif format == "NF":
         pipeline_format = ProtocolType.NEXTFLOW
@@ -82,7 +89,8 @@ def create_operator(name, pipeline_name, pipeline_github, pipeline_github_versio
                                         pipeline_github,
                                         pipeline_github_version,
                                         pipeline_entrypoint,
-                                        pipeline_format)
+                                        pipeline_format,
+                                        nfcore_template)
     except Exception as e:
         print(e)
 

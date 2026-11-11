@@ -27,6 +27,7 @@ setup(
     long_description_content_type="text/markdown",
     url="https://github.com/mskcc/voyager-sdk",
     packages=find_packages(),  # Automatically find packages in the directory
+    package_data={"voyager_sdk": ["templates/*"]},
     install_requires=read_requirements(),  # Install dependencies from requirements.txt
     entry_points={
         "console_scripts": [

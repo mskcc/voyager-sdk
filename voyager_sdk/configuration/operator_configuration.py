@@ -5,10 +5,11 @@ from exceptions.operator_exceptions import OperatorNotFoundException
 
 class OperatorConfiguration(object):
 
-    def __init__(self, config, inputs):
+    def __init__(self, config, inputs, outputs=None):
         self.config = config
         self.pipeline = config.get("pipeline")
         self.input_schema = inputs
+        self.output_schema = outputs or []
         self.operator = config.get("operator")
         print(self.operator)
 
@@ -24,6 +25,10 @@ class OperatorConfiguration(object):
         input_schema_file = os.path.join(input_schema_dir, "inputs.json")
         return input_schema_file
 
+    @staticmethod
+    def output_schema_path(directory=os.getcwd()):
+        return os.path.join(directory, ".voyager", "outputs.json")
+
     @classmethod
     def load(cls):
         configuration_path = OperatorConfiguration.config_path()
@@ -34,7 +39,12 @@ class OperatorConfiguration(object):
             config = json.load(f)
         with open(inputs_path, "r") as f:
             inputs = json.load(f)
-        return cls(config, inputs)
+        outputs = []
+        outputs_path = OperatorConfiguration.output_schema_path()
+        if os.path.exists(outputs_path):
+            with open(outputs_path, "r") as f:
+                outputs = json.load(f)
+        return cls(config, inputs, outputs)
 
     def dump(self):
         configuration_path = OperatorConfiguration.config_path()
